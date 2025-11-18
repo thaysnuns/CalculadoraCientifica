@@ -24,7 +24,7 @@ body {
     align-items: center;
     justify-content: center;
     width: 300px;
-    margin: 30vh;
+    margin-top: 50px;
 }
 
 #display {
@@ -42,7 +42,6 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 47vw;
 }
 
 .normal.linha {
@@ -61,7 +60,8 @@ body {
 }
 
 button {
-    margin: 5px;
+    align-items: center;
+    margin: 4px;
     padding: 10px 15px;
     font-size: 1rem;
     border: none;
@@ -70,6 +70,8 @@ button {
     color: white;
     cursor: pointer;
     transition: background-color .3s ease;
+    width: 50px;
+    height: 50px;
 }
 
 button:hover {
@@ -78,15 +80,22 @@ button:hover {
 
 .cientifica.mostrar {
     display: block;
+    align-items: center;
+    justify-content: center;
 }
 
 .cientifica {
     display: none;
     margin-top: 10px;
     background: #f3f3f3;
-    padding: 15px;
     border-radius: 10px;
     animation: fadeIn .3s ease;
+    width: 100%;
+}
+
+.cientifica button {
+    width: 70px;
+    height: 40px;
 }
 
 @keyframes fadeIn {
@@ -109,11 +118,13 @@ button:hover {
     border-radius: 5px;
     border: none;
     cursor: pointer;
+    width: 100%;
 }
 
 footer {
     font-size: 0.9rem;
     color: #333;
     font-family: 'Times New Roman', Times, serif;
+    margin-top: 20px;
 
 }
