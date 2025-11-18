@@ -1,30 +1,47 @@
+// ------------------------------------------------------
+// ELEMENTOS
+// ------------------------------------------------------
 const display = document.getElementById('display');
-const botoes = document.querySelectorAll('button');
+const painelCientifica = document.querySelector('.cientifica');
+const botaoCientifica = document.querySelector('.pullout');
 
+// modo de ângulo
+let modo = "deg"; // deg | rad
 
-const botaoCientifica = document.querySelector(".pullout");
-const painelCientifica = document.querySelector(".cientifica");
-
+// ------------------------------------------------------
+// MOSTRAR / ESCONDER CIENTÍFICA
+// ------------------------------------------------------
 botaoCientifica.addEventListener("click", (e) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     painelCientifica.classList.toggle("mostrar");
 });
 
-
-
+// ------------------------------------------------------
+// BOTÕES NORMAIS (IGNORA O BOTÃO pullout)
+// ------------------------------------------------------
+const botoes = document.querySelectorAll('button:not(.pullout)');
 botoes.forEach(botao => {
-    botao.addEventListener('click', () => {
+    botao.addEventListener("click", () => {
         const valor = botao.textContent;
 
         if (valor === "=") {
-            let tokens = tokenizar(display.value);
-            let resultado = parse(tokens);
-            display.value = resultado;
+            try {
+                let tokens = tokenizar(display.value);
+                let resultado = parse(tokens);
+                display.value = resultado;
+            } catch (err) {
+                display.value = "Erro";
+            }
             return;
         }
 
         if (valor === "C") {
             display.value = "";
+            return;
+        }
+
+        if (valor === "Del") {
+            display.value = display.value.slice(0, -1);
             return;
         }
 
@@ -42,12 +59,16 @@ botoes.forEach(botao => {
             display.value += "econst";
             return;
         }
-        if (valor === "Del"){
-            display.value = display.value.slice(0, -1);
+
+        if (valor === "Rad") {
+            modo = "rad";
             return;
         }
 
-        if (valor === "Modo Científico") return;
+        if (valor === "Deg") {
+            modo = "deg";
+            return;
+        }
 
         display.value += valor;
     });
@@ -59,57 +80,51 @@ botoes.forEach(botao => {
 // ------------------------------------------------------
 function tokenizar(expressao) {
     let tokens = [];
-    let numeroAtual = "";
-    let funcaoAtual = "";
+    let numero = "";
+    let funcao = "";
 
     for (let char of expressao) {
 
         if (!isNaN(char) || char === ".") {
-
-            if (funcaoAtual !== "") {
-                tokens.push(funcaoAtual);
-                funcaoAtual = "";
+            if (funcao !== "") {
+                tokens.push(funcao);
+                funcao = "";
             }
-
-            numeroAtual += char;
+            numero += char;
         }
 
         else if (char.match(/[a-zA-Z]/)) {
-
-            if (numeroAtual !== "") {
-                tokens.push(numeroAtual);
-                numeroAtual = "";
+            if (numero !== "") {
+                tokens.push(numero);
+                numero = "";
             }
-
-            funcaoAtual += char;
+            funcao += char;
         }
 
         else {
-            if (numeroAtual !== "") {
-                tokens.push(numeroAtual);
-                numeroAtual = "";
+            if (numero !== "") {
+                tokens.push(numero);
+                numero = "";
+            }
+            if (funcao !== "") {
+                tokens.push(funcao);
+                funcao = "";
             }
 
-            if (funcaoAtual !== "") {
-                tokens.push(funcaoAtual);
-                funcaoAtual = "";
-            }
-
-            tokens.push(char);
+            tokens.push(char); // inclui %, +, -, *, /, etc.
         }
     }
 
-    if (numeroAtual !== "") tokens.push(numeroAtual);
-    if (funcaoAtual !== "") tokens.push(funcaoAtual);
+    if (numero !== "") tokens.push(numero);
+    if (funcao !== "") tokens.push(funcao);
 
     return tokens;
 }
 
 
 // ------------------------------------------------------
-// PARSER COMPLETO
+// PARSER
 // ------------------------------------------------------
-
 function parse(tokens) {
     let i = 0;
 
@@ -117,23 +132,33 @@ function parse(tokens) {
         let node = parseTermo();
 
         while (tokens[i] === "+" || tokens[i] === "-") {
-            let operador = tokens[i];
-            i++;
-            let direito = parseTermo();
-            node = { tipo: "binario", operador, esquerdo: node, direito };
+            let op = tokens[i++];
+            let right = parseTermo();
+            node = { tipo: "binario", op, left: node, right };
         }
 
         return node;
     }
 
     function parseTermo() {
+        let node = parsePercentual();
+
+        while (tokens[i] === "*" || tokens[i] === "/" || tokens[i] === "^") {
+            let op = tokens[i++];
+            let right = parsePercentual();
+            node = { tipo: "binario", op, left: node, right };
+        }
+
+        return node;
+    }
+
+    // 👇 NOVA CAMADA PARA %
+    function parsePercentual() {
         let node = parseFator();
 
-        while (tokens[i] === "*" || tokens[i] === "/") {
-            let operador = tokens[i];
+        while (tokens[i] === "%") {
             i++;
-            let direito = parseFator();
-            node = { tipo: "binario", operador, esquerdo: node, direito };
+            node = { tipo: "percent", left: node };
         }
 
         return node;
@@ -142,39 +167,34 @@ function parse(tokens) {
     function parseFator() {
         let token = tokens[i];
 
-        // número
         if (!isNaN(token)) {
             i++;
             return { tipo: "numero", valor: parseFloat(token) };
         }
 
-        // parênteses
         if (token === "(") {
             i++;
             let node = parseExpressao();
-            i++; // pula ")"
+            i++;
             return node;
         }
 
-        // funções: sen, cos, tan, raiz, log etc
         if (token.match(/[a-zA-Z]+/)) {
-            let nomeFuncao = token;
+            let nome = token.toLowerCase();
             i++;
 
-            // Função com parênteses → sen(30)
             if (tokens[i] === "(") {
-                i++; // "("
-                let argumento = parseExpressao();
-                i++; // ")"
-                return { tipo: "funcao", nome: nomeFuncao, argumento };
+                i++;
+                let arg = parseExpressao();
+                i++;
+                return { tipo: "funcao", nome, arg };
             }
 
-            // Função sem parênteses → sen30
-            let argumento = parseFator();
-            return { tipo: "funcao", nome: nomeFuncao, argumento };
+            let arg = parseFator();
+            return { tipo: "funcao", nome, arg };
         }
 
-        throw new Error("Token inesperado: " + token);
+        throw "Token inesperado: " + token;
     }
 
     let arvore = parseExpressao();
@@ -185,16 +205,15 @@ function parse(tokens) {
 // ------------------------------------------------------
 // AVALIADOR
 // ------------------------------------------------------
-
 function avaliar(node) {
 
     if (node.tipo === "numero") return node.valor;
 
     if (node.tipo === "binario") {
-        let e = avaliar(node.esquerdo);
-        let d = avaliar(node.direito);
+        let e = avaliar(node.left);
+        let d = avaliar(node.right);
 
-        switch (node.operador) {
+        switch (node.op) {
             case "+": return e + d;
             case "-": return e - d;
             case "*": return e * d;
@@ -203,42 +222,52 @@ function avaliar(node) {
         }
     }
 
+    // 👇 MODELO B DE PORCENTAGEM
+    if (node.tipo === "percent") {
+        let base = avaliar(node.left);
+        return base / 100;
+    }
+
     if (node.tipo === "funcao") {
-        let arg = avaliar(node.argumento);
+        let x = avaliar(node.arg);
 
-        switch (node.nome.toLowerCase()) {
+        function toRad(v) {
+            return modo === "deg" ? v * Math.PI / 180 : v;
+        }
 
-            case "sen": return Math.sin(arg);
-            case "cos": return Math.cos(arg);
-            case "tg": return Math.tan(arg);
+        switch (node.nome) {
+            case "sen": return Math.sin(toRad(x));
+            case "cos": return Math.cos(toRad(x));
+            case "tg": return Math.tan(toRad(x));
 
-            case "log": return Math.log10(arg);
-            case "ln": return Math.log(arg);
+            case "cotg": return 1 / Math.tan(toRad(x));
+            case "sec": return 1 / Math.cos(toRad(x));
+            case "cossec": return 1 / Math.sin(toRad(x));
 
-            case "raiz": return Math.sqrt(arg);
-            case "exp": return Math.exp(arg);
+            case "log": return Math.log10(x);
+            case "ln": return Math.log(x);
+            case "exp": return Math.exp(x);
 
-            case "sec": return 1 / Math.cos(arg);
-            case "cossec": return 1 / Math.sin(arg);
-            case "cotg": return 1 / Math.tan(arg);
+            case "raiz": return Math.sqrt(x);
+            case "inv": return 1 / x;
 
-            case "rad": return arg * (Math.PI / 180);
+            case "fat": return fatorial(x);
 
-            case "inv": return 1 / arg;
+            case "pi": return Math.PI;
+            case "econst": return Math.E;
 
             default:
                 throw "Função desconhecida: " + node.nome;
         }
     }
 
-    throw "Node inválido";
+    throw "Erro no avaliador";
 }
 
 
 // ------------------------------------------------------
 // FATORIAL
 // ------------------------------------------------------
-
 function fatorial(n) {
     if (n < 0) return NaN;
     if (n === 0) return 1;
