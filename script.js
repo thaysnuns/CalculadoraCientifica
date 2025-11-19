@@ -1,5 +1,5 @@
 // -------------------------------
-// script.js — Calculadora Sábia
+// script.js — Calculadora Sábia (corrigido)
 // -------------------------------
 
 /* ELEMENTOS */
@@ -65,6 +65,12 @@ botoes.forEach((botao) => {
       return;
     }
 
+    // raiz n-ésima: botão escreve 'raiz('
+    if (v === "nRaiz") {
+      display.value += "raiz(";
+      return;
+    }
+
     // Rad / Deg
     if (v === "Rad") {
       modo = "rad";
@@ -79,8 +85,7 @@ botoes.forEach((botao) => {
       return;
     }
 
-    // funções textuais (sen, cos, tg, ln, log, exp, raiz, cotg, sec, cossec)
-    // adiciona o texto da própria tecla, deixando o usuário escrever parênteses manualmente se quiser
+    // Inserir texto simples (números, operadores, nomes de funções como sen, ln, etc.)
     display.value += v;
   });
 });
@@ -117,7 +122,7 @@ function tokenizar(expressao) {
       continue;
     }
 
-    // letras e π e símbolos de palavra
+    // letras e π
     if (/[a-zA-Zπ]/.test(ch)) {
       if (numero) {
         tokens.push(numero);
@@ -131,7 +136,7 @@ function tokenizar(expressao) {
       continue;
     }
 
-    // operador ou símbolo
+    // operador ou símbolo (inclui vírgula)
     if (numero) {
       tokens.push(numero);
       numero = "";
@@ -140,8 +145,7 @@ function tokenizar(expressao) {
       tokens.push(palavra);
       palavra = "";
     }
-    // ignora espaços
-    if (ch.trim() === "") continue;
+    if (ch.trim() === "") continue; // ignora espaço
     tokens.push(ch);
   }
 
@@ -186,15 +190,56 @@ function parse(tokens) {
     return node;
   }
 
-  // pós-fixos: ! e % (suportamos % como pós-fixo)
+  // pós-fixos: !, %, e também chamadas de aplicação ( ... ) após um fator
   function parsePosfix() {
     let node = parseFator();
-    while (tokenAtual() === "!" || tokenAtual() === "%") {
-      const t = tokenAtual(); i++;
-      if (t === "!") node = { tipo: "fact", arg: node }; // fatorial
-      else if (t === "%") node = { tipo: "percent", left: node }; // porcentagem (postfix)
+
+    while (true) {
+      const t = tokenAtual();
+      if (t === "!" || t === "%") {
+        i++;
+        if (t === "!") node = { tipo: "fact", arg: node };
+        else node = { tipo: "percent", left: node };
+        continue;
+      }
+
+      // aplicação: node(args...) -> permite raiz(3)(27)
+      if (t === "(") {
+        // é uma chamada: parsear os argumentos da chamada
+        i++; // pula "("
+        const args = [];
+        if (tokenAtual() !== ")") {
+          while (true) {
+            args.push(parseExpressao());
+            if (tokenAtual() === ",") { i++; continue; }
+            break;
+          }
+        }
+        if (tokenAtual() !== ")") throw "Parêntese faltando na chamada";
+        i++; // pula ")"
+        node = { tipo: "call", callee: node, args };
+        continue;
+      }
+
+      break;
     }
+
     return node;
+  }
+
+  // parse lista de argumentos: expr (, expr)*
+  function parseArgList() {
+    const args = [];
+    if (tokenAtual() === ")") return args; // lista vazia
+    while (true) {
+      args.push(parseExpressao());
+      if (tokenAtual() === ",") {
+        i++; // pula vírgula
+        continue;
+      }
+      break;
+    }
+    return args;
   }
 
   function parseFator() {
@@ -225,18 +270,18 @@ function parse(tokens) {
       if (nome === "pi") return { tipo: "numero", valor: Math.PI };
       if (nome === "e" || nome === "econst") return { tipo: "numero", valor: Math.E };
 
-      // função com parênteses: sen( ... )
+      // função com parênteses: fn(arg, arg2, ...)
       if (tokenAtual() === "(") {
         i++; // pula "("
-        const arg = parseExpressao();
+        const args = parseArgList();
         if (tokenAtual() !== ")") throw "Parêntese faltando";
         i++; // pula ")"
-        return { tipo: "funcao", nome, arg };
+        return { tipo: "funcao", nome, args };
       }
 
       // função sem parênteses: sen30 (argumento é outro fator)
       const arg = parseFator();
-      return { tipo: "funcao", nome, arg };
+      return { tipo: "funcao", nome, args: [arg] };
     }
 
     throw "Token inesperado: " + tok;
@@ -250,28 +295,45 @@ function parse(tokens) {
 function avaliar(node) {
   if (!node || !node.tipo) throw "Node inválido";
 
+  // número direto
   if (node.tipo === "numero") return node.valor;
 
+  // fatorial
   if (node.tipo === "fact") {
     const v = avaliar(node.arg);
     return fatorial(v);
   }
 
+  // percent (postfix) -> decimal
   if (node.tipo === "percent") {
-    // percent sozinho vira decimal (10% -> 0.1)
     const leftVal = avaliar(node.left);
     return leftVal / 100;
   }
 
+  // chamada (call) — aplica uma função/valor que resulte em função
+  if (node.tipo === "call") {
+    const calleeVal = avaliar(node.callee);
+    const argVals = (node.args || []).map(a => avaliar(a));
+
+    if (typeof calleeVal === "function") {
+      // se callee avaliou para função JS, chama direto
+      const res = calleeVal(...argVals);
+      return typeof res === "number" ? ajustarPrecisao(res) : res;
+    } else {
+      // se callee não for função, tenta tratar como erro
+      throw "Tentativa de chamada em algo não-função";
+    }
+  }
+
+  // operações binárias
   if (node.tipo === "binario") {
     const e = avaliar(node.left);
     const rightNode = node.right;
 
     // se o right for porcentagem (postfix), usamos MODELO B
     if (rightNode && rightNode.tipo === "percent") {
-      const percBase = avaliar(rightNode.left); // ex: 10 -> 10%
+      const percBase = avaliar(rightNode.left);
       const frac = percBase / 100;
-
       switch (node.op) {
         case "+": return e + e * frac;
         case "-": return e - e * frac;
@@ -291,28 +353,58 @@ function avaliar(node) {
     }
   }
 
+  // funções (funcao nodes)
   if (node.tipo === "funcao") {
-    const argVal = avaliar(node.arg);
+    const args = node.args || [];
+    const avalArgs = args.map(a => avaliar(a));
 
     function toRad(v) { return modo === "deg" ? v * Math.PI / 180 : v; }
-    // sempre ajustar precisão nos trig e resultados sensíveis
+
     switch (node.nome) {
-      case "sen": return ajustarPrecisao(Math.sin(toRad(argVal)));
-      case "cos": return ajustarPrecisao(Math.cos(toRad(argVal)));
-      case "tg": return ajustarPrecisao(Math.tan(toRad(argVal)));
+      case "sen":
+        return ajustarPrecisao(Math.sin(toRad(avalArgs[0])));
+      case "cos":
+        return ajustarPrecisao(Math.cos(toRad(avalArgs[0])));
+      case "tg":
+        return ajustarPrecisao(Math.tan(toRad(avalArgs[0])));
 
-      case "cotg": return ajustarPrecisao(1 / Math.tan(toRad(argVal)));
-      case "sec": return ajustarPrecisao(1 / Math.cos(toRad(argVal)));
-      case "cossec": return ajustarPrecisao(1 / Math.sin(toRad(argVal)));
+      case "cotg":
+        return ajustarPrecisao(1 / Math.tan(toRad(avalArgs[0])));
+      case "sec":
+        return ajustarPrecisao(1 / Math.cos(toRad(avalArgs[0])));
+      case "cossec":
+        return ajustarPrecisao(1 / Math.sin(toRad(avalArgs[0])));
 
-      case "log": return ajustarPrecisao(Math.log10(argVal));
-      case "ln": return ajustarPrecisao(Math.log(argVal));
-      case "exp": return ajustarPrecisao(Math.exp(argVal));
+      case "log":
+        return ajustarPrecisao(Math.log10(avalArgs[0]));
+      case "ln":
+        return ajustarPrecisao(Math.log(avalArgs[0]));
+      case "exp":
+        return ajustarPrecisao(Math.exp(avalArgs[0]));
 
-      case "raiz": return ajustarPrecisao(Math.sqrt(argVal));
-      case "inv": return ajustarPrecisao(1 / argVal);
+      case "raiz":
+        // compatibilidade: raiz(x) -> sqrt(x)
+        // raiz(n,x) -> x^(1/n)
+        // raiz(n) -> retorna função que espera x (para suportar raiz(n)(x))
+        if (avalArgs.length === 1) {
+          const n = avalArgs[0];
+          // retorna função JS que será chamada por um nó 'call'
+          return function (x) {
+            return ajustarPrecisao(Math.pow(x, 1 / n));
+          };
+        }
+        if (avalArgs.length === 2) {
+          const n = avalArgs[0];
+          const x = avalArgs[1];
+          return ajustarPrecisao(Math.pow(x, 1 / n));
+        }
+        throw "raiz(): número de argumentos inválido";
 
-      default: throw "Função desconhecida: " + node.nome;
+      case "inv":
+        return ajustarPrecisao(1 / avalArgs[0]);
+
+      default:
+        throw "Função desconhecida: " + node.nome;
     }
   }
 
