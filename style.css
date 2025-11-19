@@ -1,3 +1,4 @@
+@charset "UTF-8";
 * {
   margin: 0;
   padding: 0;
@@ -6,7 +7,6 @@
 
 body {
   font-family: Arial, Helvetica, sans-serif;
-  background: #EEAECA;
   background: radial-gradient(circle, rgb(238, 174, 202) 0%, rgb(148, 187, 233) 100%);
   display: flex;
   justify-content: center;
@@ -14,6 +14,7 @@ body {
   flex-direction: column;
 }
 
+/* Container principal */
 .conteiner-principal {
   background-color: rgba(255, 255, 255, 0.8);
   padding: 20px;
@@ -22,7 +23,6 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   width: 300px;
   margin-top: 50px;
 }
@@ -37,30 +37,21 @@ body {
   text-align: right;
 }
 
+/* Grade dos botões normais */
 .normal {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
 }
 
-.normal.linha {
+.linha {
   width: 100%;
-  justify-content: center;
   display: flex;
-  align-items: center;
+  justify-content: center;
 }
 
-.cientifica {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-top: 10px;
-}
-
+/* Botões */
 button {
-  align-items: center;
   margin: 4px;
   padding: 10px 15px;
   font-size: 1rem;
@@ -78,19 +69,21 @@ button:hover {
   background-color: #5a99ff;
 }
 
-.cientifica.mostrar {
-  display: block;
-  align-items: center;
-  justify-content: center;
-}
-
+/* Modo científico */
 .cientifica {
   display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
   margin-top: 10px;
   background: #f3f3f3;
+  padding: 10px;
   border-radius: 10px;
   animation: fadeIn 0.3s ease;
-  width: 100%;
+}
+
+.cientifica.mostrar {
+  display: flex;
 }
 
 .cientifica button {
@@ -98,6 +91,18 @@ button:hover {
   height: 40px;
 }
 
+/* Botão de expandir */
+.pullout {
+  margin-top: 20px;
+  background: #a8a8a8;
+  color: #fff;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* Animação */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -108,17 +113,7 @@ button:hover {
     transform: translateY(0);
   }
 }
-.pullout {
-  margin-top: 20px;
-  background: #a8a8a8;
-  color: #fff;
-  padding: 10px 15px;
-  border-radius: 5px;
-  border: none;
-  cursor: pointer;
-  width: 100%;
-}
-
+/* Rodapé */
 footer {
   font-size: 0.9rem;
   color: #333;
