@@ -1,11 +1,10 @@
 # 👩‍💻 +1 Desafio!
-Este projeto é referente ao módulo 1 (Fundamentos da Programação Front-end) do curso de Desenvolvimento WEB do Vai Na Web com L'oreal Groupe
+Este projeto é referente à aula de Cálculo do curso de Análise e Desenvolvimento de Sistemas da Faculdade de Tecnologia do Estado de São Paulo
 
 ---
 
 ## 🧠 O Desafio
-O CineWNV é um projeto feito com gostos pessoais  de como seria nosso cinema **ideal**, busquei trazer filmes clássicos da infância para retratar e relembrar de uma epóca tão querida
-
+A CalcSabio foi feita com o objetivo de ser um exercício simples entre a matéria de Cálculo e a programação, desenvolvendo os cálculos e fórmulas presentes em uma calculadora real.
 A missão foi desenvolver uma página web funcional, responsiva e divertida para todos os públicos. 
 
 ---
